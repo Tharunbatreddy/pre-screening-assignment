@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  postgres-db:
+    image: postgres:13
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: devuser
+      POSTGRES_PASSWORD: devpass
+      POSTGRES_DB: devdb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - app-networking
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devuser"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: backend.Dockerfile
+    container_name: backend-app
+    environment:
+      DATABASE_URL: postgresql://devuser:devpass@postgres-db:5432/devdb
+    ports:
+      - "5000:8080"
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    networks:
+      - app-networking
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: frontend.Dockerfile
+    container_name: frontend-app
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - app-networking
+    restart: always
+
+volumes:
+  pgdata:
+
+networks:
+  app-networking:
+    driver: bridge
+
